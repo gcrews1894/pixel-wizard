@@ -1,0 +1,63 @@
+import { useState } from 'react';
+import { Nav } from '../components/Nav';
+import { ProjectCard } from '../components/ProjectCard';
+import { NewProjectModal } from '../components/NewProjectModal';
+import { useProjectStore } from '../store/projectStore';
+
+export function DashboardPage() {
+  const { projects } = useProjectStore();
+  const [showModal, setShowModal] = useState(false);
+
+  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+
+  return (
+    <div className="min-h-screen bg-[#1a1a2e] text-[#eaeaea]">
+      <Nav />
+
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold text-[#eaeaea]">My Projects</h1>
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-5 py-2.5 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
+          >
+            + New Project
+          </button>
+        </div>
+
+        {sorted.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 text-center">
+            <div className="text-7xl mb-6 select-none">✦</div>
+            <h2 className="text-xl font-semibold text-[#eaeaea] mb-2">No projects yet</h2>
+            <p className="text-[#8888aa] text-sm mb-8 max-w-sm">
+              Create your first pixel art project and start drawing.
+            </p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-6 py-3 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
+            >
+              Create your first project
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {/* New project card */}
+            <button
+              onClick={() => setShowModal(true)}
+              className="aspect-square bg-[#16213e] border-2 border-dashed border-[#2a2a4a] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[#e94560] hover:bg-[#1a1a2e] active:scale-95 transition-all group"
+            >
+              <span className="text-3xl text-[#555577] group-hover:text-[#e94560] transition-colors">+</span>
+              <span className="text-[#555577] text-xs group-hover:text-[#8888aa] transition-colors">New Project</span>
+            </button>
+
+            {sorted.map(p => (
+              <ProjectCard key={p.id} project={p} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showModal && <NewProjectModal onClose={() => setShowModal(false)} />}
+    </div>
+  );
+}
