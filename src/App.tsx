@@ -4,9 +4,14 @@ import { Toolbar } from './components/Toolbar';
 import { ColorPicker } from './components/ColorPicker';
 import { DownloadPanel } from './components/DownloadPanel';
 import { usePersistence } from './hooks/usePersistence';
+import { useViewport } from './hooks/useViewport';
 
 export default function App() {
   usePersistence();
+  const viewportControls = useViewport();
+  const { viewport, fitToWindow, zoomStep } = viewportControls;
+
+  const zoomPct = Math.round(viewport.zoom * 100);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#1a1a2e] text-[#eaeaea]">
@@ -14,15 +19,15 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-52 shrink-0 bg-[#16213e] border-r border-[#2a2a4a] flex flex-col gap-5 p-3.5 overflow-y-auto">
+        <aside className="w-72 shrink-0 bg-[#16213e] border-r border-[#2a2a4a] flex flex-col gap-6 p-4 overflow-y-auto">
           <Toolbar />
           <div className="h-px bg-[#2a2a4a]" />
           <ColorPicker />
         </aside>
 
-        {/* Canvas area */}
+        {/* Canvas area — position:relative so overlay anchors to it */}
         <main
-          className="flex-1 flex items-center justify-center overflow-auto p-5"
+          className="relative flex-1 overflow-hidden"
           style={{
             background: `
               radial-gradient(circle at 20% 50%, rgba(83,52,131,.15) 0%, transparent 50%),
@@ -31,7 +36,40 @@ export default function App() {
             `,
           }}
         >
-          <Canvas />
+          <Canvas viewportControls={viewportControls} />
+
+          {/* Zoom controls overlay — bottom-right corner */}
+          <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-[#16213e]/90 backdrop-blur-sm border border-[#2a2a4a] rounded-lg px-2 py-1.5 select-none">
+            <button
+              onClick={() => zoomStep(-1)}
+              title="Zoom out (−)"
+              className="w-7 h-7 flex items-center justify-center rounded text-[#8888aa] hover:text-[#eaeaea] hover:bg-[#2a2a4a] transition-all text-lg leading-none"
+            >
+              −
+            </button>
+            <button
+              onClick={fitToWindow}
+              title="Fit to window (0)"
+              className="min-w-[4rem] text-center text-sm font-mono text-[#eaeaea] hover:text-[#e94560] transition-colors px-1"
+            >
+              {zoomPct}%
+            </button>
+            <button
+              onClick={() => zoomStep(1)}
+              title="Zoom in (+)"
+              className="w-7 h-7 flex items-center justify-center rounded text-[#8888aa] hover:text-[#eaeaea] hover:bg-[#2a2a4a] transition-all text-lg leading-none"
+            >
+              +
+            </button>
+            <div className="w-px h-4 bg-[#2a2a4a] mx-0.5" />
+            <button
+              onClick={fitToWindow}
+              title="Fit to window (0)"
+              className="w-7 h-7 flex items-center justify-center rounded text-[#8888aa] hover:text-[#eaeaea] hover:bg-[#2a2a4a] transition-all text-xs"
+            >
+              ⊡
+            </button>
+          </div>
         </main>
       </div>
 

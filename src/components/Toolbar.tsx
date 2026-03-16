@@ -31,25 +31,25 @@ export function Toolbar() {
 
   return (
     <div>
-      <p className="text-[#8888aa] text-[10px] font-bold uppercase tracking-widest mb-2">Tools</p>
-      <div className="grid grid-cols-2 gap-1.5">
+      <p className="text-[#8888aa] text-xs font-bold uppercase tracking-widest mb-3">Tools</p>
+      <div className="grid grid-cols-2 gap-2">
         {TOOLS.map(t => (
           <button
             key={t.id}
             onClick={() => setTool(t.id)}
             title={`${t.label} (${t.key})`}
-            className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg border text-base transition-all hover:bg-[#0f3460] active:scale-95 ${
+            className={`flex flex-col items-center justify-center gap-1 py-3 rounded-lg border text-xl transition-all hover:bg-[#0f3460] active:scale-95 ${
               tool === t.id
                 ? 'bg-[#533483] border-[#e94560] text-white'
                 : 'bg-[#1a1a2e] border-[#2a2a4a] text-[#eaeaea]'
             }`}
           >
             <span>{t.icon}</span>
-            <span className="text-[9px] text-[#8888aa] leading-none">{t.label}</span>
+            <span className="text-[11px] text-[#8888aa] leading-none">{t.label}</span>
           </button>
         ))}
       </div>
-      <p className="text-[#555577] text-[9px] mt-2 leading-relaxed">
+      <p className="text-[#555577] text-[11px] mt-3 leading-relaxed">
         Right-click = erase<br />Ctrl+Z = undo
       </p>
     </div>

@@ -14,20 +14,20 @@ export function ColorPicker() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {/* Current color swatch */}
       <div>
-        <p className="text-[#8888aa] text-[10px] font-bold uppercase tracking-widest mb-2">
+        <p className="text-[#8888aa] text-xs font-bold uppercase tracking-widest mb-2">
           Color
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleSwatchClick}
             title="Open full picker"
             style={{ background: currentColor }}
-            className="w-9 h-9 rounded-lg border-2 border-[#2a2a4a] flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
+            className="w-12 h-12 rounded-lg border-2 border-[#2a2a4a] flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
           />
-          <span className="text-[#8888aa] text-xs font-mono">{currentColor}</span>
+          <span className="text-[#8888aa] text-sm font-mono">{currentColor}</span>
         </div>
       </div>
 
@@ -37,7 +37,7 @@ export function ColorPicker() {
           <button
             key={m}
             onClick={() => setMode(m)}
-            className={`flex-1 py-1.5 text-xs font-semibold capitalize transition-all ${
+            className={`flex-1 py-2 text-sm font-semibold capitalize transition-all ${
               mode === m
                 ? 'bg-[#533483] text-white'
                 : 'text-[#8888aa] hover:text-[#eaeaea]'
@@ -54,17 +54,17 @@ export function ColorPicker() {
       {/* Recent colors */}
       {recentColors.length > 0 && (
         <div>
-          <p className="text-[#8888aa] text-[10px] font-bold uppercase tracking-widest mb-1.5">
+          <p className="text-[#8888aa] text-xs font-bold uppercase tracking-widest mb-2">
             Recent
           </p>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {recentColors.map((c, i) => (
               <button
                 key={`${c}-${i}`}
                 title={c}
                 style={{ background: c }}
                 onClick={() => { setCurrentColor(c); addRecentColor(c); }}
-                className="w-5 h-5 rounded-sm border border-[#2a2a4a] transition-transform hover:scale-125"
+                className="w-7 h-7 rounded border border-[#2a2a4a] transition-transform hover:scale-125"
               />
             ))}
           </div>

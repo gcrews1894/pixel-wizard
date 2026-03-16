@@ -41,7 +41,7 @@ export function FullPicker() {
         type="color"
         value={currentColor}
         onChange={handleNative}
-        className="w-full h-16 rounded-lg cursor-pointer"
+        className="w-full h-24 rounded-lg cursor-pointer"
       />
 
       {/* RGB Sliders */}
@@ -50,8 +50,8 @@ export function FullPicker() {
         const labels = ['R', 'G', 'B'];
         const colors  = ['#e94560', '#22c55e', '#3b82f6'];
         return (
-          <div key={ch} className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs">
+          <div key={ch} className="flex flex-col gap-1.5">
+            <div className="flex justify-between text-sm">
               <span style={{ color: colors[i] }} className="font-semibold">{labels[i]}</span>
               <span className="text-[#8888aa] font-mono">{val}</span>
             </div>
@@ -74,7 +74,7 @@ export function FullPicker() {
         onChange={e => handleHexInput(e.target.value)}
         maxLength={7}
         placeholder="#000000"
-        className="w-full bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-2 py-1.5 text-sm font-mono outline-none focus:border-[#e94560]"
+        className="w-full bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-3 py-2 text-sm font-mono outline-none focus:border-[#e94560]"
       />
     </div>
   );

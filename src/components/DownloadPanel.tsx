@@ -25,18 +25,18 @@ export function DownloadPanel() {
   }
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2.5 bg-[#16213e] border-t border-[#2a2a4a] flex-wrap shrink-0">
-      <span className="text-[#8888aa] text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+    <div className="flex items-center gap-5 px-5 py-3 bg-[#16213e] border-t border-[#2a2a4a] flex-wrap shrink-0">
+      <span className="text-[#8888aa] text-xs font-bold uppercase tracking-widest whitespace-nowrap">
         ⬇ Download
       </span>
 
       {/* Scale */}
-      <div className="flex items-center gap-1.5">
-        <label className="text-[#8888aa] text-xs">Scale</label>
+      <div className="flex items-center gap-2">
+        <label className="text-[#8888aa] text-sm">Scale</label>
         <select
           value={scale}
           onChange={e => setScale(+e.target.value)}
-          className="bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-2 py-1 text-sm outline-none focus:border-[#e94560] cursor-pointer"
+          className="bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-3 py-1.5 text-sm outline-none focus:border-[#e94560] cursor-pointer"
         >
           {SCALES.map(s => (
             <option key={s} value={s}>{s}×</option>
@@ -45,12 +45,12 @@ export function DownloadPanel() {
       </div>
 
       {/* Format */}
-      <div className="flex items-center gap-1.5">
-        <label className="text-[#8888aa] text-xs">Format</label>
+      <div className="flex items-center gap-2">
+        <label className="text-[#8888aa] text-sm">Format</label>
         <select
           value={format}
           onChange={e => setFormat(e.target.value as ExportOptions['format'])}
-          className="bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-2 py-1 text-sm outline-none focus:border-[#e94560] cursor-pointer"
+          className="bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-3 py-1.5 text-sm outline-none focus:border-[#e94560] cursor-pointer"
         >
           {FORMATS.map(f => (
             <option key={f} value={f}>{f.toUpperCase()}</option>
@@ -59,7 +59,7 @@ export function DownloadPanel() {
       </div>
 
       {/* Include grid */}
-      <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-[#8888aa]">
+      <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-[#8888aa]">
         <input
           type="checkbox"
           checked={includeGrid}
@@ -69,7 +69,7 @@ export function DownloadPanel() {
       </label>
 
       {/* Transparent BG */}
-      <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-[#8888aa]">
+      <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-[#8888aa]">
         <input
           type="checkbox"
           checked={transparent}
@@ -78,19 +78,19 @@ export function DownloadPanel() {
         />
         Transparent BG
         {format === 'jpeg' && (
-          <span className="text-[#555577] text-[10px]">(N/A for JPEG)</span>
+          <span className="text-[#555577] text-xs">(N/A for JPEG)</span>
         )}
       </label>
 
       {/* Size preview */}
-      <span className="text-[#555577] text-xs font-mono ml-auto">
+      <span className="text-[#555577] text-sm font-mono ml-auto">
         Output: {outW} × {outH} px
       </span>
 
       {/* Download button */}
       <button
         onClick={handleDownload}
-        className="px-4 py-1.5 bg-[#2ea043] text-white rounded-md text-sm font-semibold hover:opacity-80 active:scale-95 transition-all whitespace-nowrap"
+        className="px-5 py-2 bg-[#2ea043] text-white rounded-md text-sm font-semibold hover:opacity-80 active:scale-95 transition-all whitespace-nowrap"
       >
         ⬇ Download
       </button>

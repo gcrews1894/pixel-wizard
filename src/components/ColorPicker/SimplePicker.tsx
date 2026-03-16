@@ -11,7 +11,7 @@ export function SimplePicker() {
 
   return (
     <div
-      className="grid gap-1"
+      className="grid gap-1.5"
       style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}
     >
       {SIMPLE_PALETTE.map(color => (
@@ -20,7 +20,7 @@ export function SimplePicker() {
           title={color}
           onClick={() => handleSelect(color)}
           style={{ background: color }}
-          className={`aspect-square rounded-sm transition-transform hover:scale-125 hover:z-10 relative ${
+          className={`aspect-square rounded transition-transform hover:scale-125 hover:z-10 relative ${
             currentColor === color
               ? 'outline outline-2 outline-white outline-offset-1 scale-110'
               : ''

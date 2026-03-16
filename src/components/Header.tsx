@@ -35,19 +35,19 @@ export function Header() {
   }
 
   return (
-    <header className="flex items-center gap-4 px-4 py-2.5 bg-[#16213e] border-b border-[#2a2a4a] flex-wrap shrink-0">
-      <h1 className="text-[#e94560] font-bold text-xl tracking-wide whitespace-nowrap select-none">
+    <header className="flex items-center gap-5 px-5 py-3 bg-[#16213e] border-b border-[#2a2a4a] flex-wrap shrink-0">
+      <h1 className="text-[#e94560] font-bold text-2xl tracking-wide whitespace-nowrap select-none">
         ✦ Pixel Wizard
       </h1>
 
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-4 flex-wrap">
         {/* Preset resolution */}
         <div className="flex items-center gap-2">
-          <label className="text-[#8888aa] text-xs">Size</label>
+          <label className="text-[#8888aa] text-sm">Size</label>
           <select
             value={preset}
             onChange={e => handlePresetChange(e.target.value)}
-            className="bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-2 py-1 text-sm outline-none focus:border-[#e94560] cursor-pointer"
+            className="bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-3 py-1.5 text-sm outline-none focus:border-[#e94560] cursor-pointer"
           >
             {PRESETS.map(n => (
               <option key={n} value={n}>
@@ -60,28 +60,28 @@ export function Header() {
 
         {/* Custom size */}
         {showCustom && (
-          <div className="flex items-center gap-1.5">
-            <label className="text-[#8888aa] text-xs">W</label>
+          <div className="flex items-center gap-2">
+            <label className="text-[#8888aa] text-sm">W</label>
             <input
               type="number"
               value={customW}
               onChange={e => setCustomW(e.target.value)}
               min={1}
               max={256}
-              className="w-14 bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-2 py-1 text-sm outline-none focus:border-[#e94560]"
+              className="w-16 bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-3 py-1.5 text-sm outline-none focus:border-[#e94560]"
             />
-            <label className="text-[#8888aa] text-xs">H</label>
+            <label className="text-[#8888aa] text-sm">H</label>
             <input
               type="number"
               value={customH}
               onChange={e => setCustomH(e.target.value)}
               min={1}
               max={256}
-              className="w-14 bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-2 py-1 text-sm outline-none focus:border-[#e94560]"
+              className="w-16 bg-[#1a1a2e] border border-[#2a2a4a] text-[#eaeaea] rounded-md px-3 py-1.5 text-sm outline-none focus:border-[#e94560]"
             />
             <button
               onClick={handleApplyCustom}
-              className="px-3 py-1 bg-[#0f3460] border border-[#2a2a4a] text-[#eaeaea] rounded-md text-sm hover:opacity-80 active:scale-95 transition-all"
+              className="px-4 py-1.5 bg-[#0f3460] border border-[#2a2a4a] text-[#eaeaea] rounded-md text-sm hover:opacity-80 active:scale-95 transition-all"
             >
               Apply
             </button>
@@ -90,7 +90,7 @@ export function Header() {
 
         {/* Current grid info */}
         {!showCustom && (
-          <span className="text-[#8888aa] text-xs font-mono">
+          <span className="text-[#8888aa] text-sm font-mono">
             {gridW} × {gridH}
           </span>
         )}
@@ -98,7 +98,7 @@ export function Header() {
         {/* Grid toggle */}
         <button
           onClick={() => setShowGrid(!showGrid)}
-          className={`px-3 py-1 rounded-md text-sm border transition-all hover:opacity-80 active:scale-95 ${
+          className={`px-4 py-1.5 rounded-md text-sm border transition-all hover:opacity-80 active:scale-95 ${
             showGrid
               ? 'bg-[#533483] border-[#533483] text-white'
               : 'bg-[#1a1a2e] border-[#2a2a4a] text-[#8888aa]'
@@ -110,7 +110,7 @@ export function Header() {
         {/* Clear */}
         <button
           onClick={handleClear}
-          className="px-3 py-1 bg-[#e94560] text-white rounded-md text-sm hover:opacity-80 active:scale-95 transition-all"
+          className="px-4 py-1.5 bg-[#e94560] text-white rounded-md text-sm hover:opacity-80 active:scale-95 transition-all"
         >
           Clear
         </button>
