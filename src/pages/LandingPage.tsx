@@ -94,7 +94,7 @@ export function LandingPage() {
       <section className="max-w-5xl mx-auto px-6 py-24 flex flex-col md:flex-row items-center gap-12">
         <div className="flex-1">
           <div className="inline-block text-xs font-bold uppercase tracking-widest text-[#e94560] bg-[#e94560]/10 border border-[#e94560]/30 rounded-full px-3 py-1 mb-6">
-            Free · No sign-up required
+            Free to start · Cloud sync with Pro
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-[#eaeaea] leading-tight mb-4">
             Pixel art for<br />
@@ -106,7 +106,7 @@ export function LandingPage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              to="/app"
+              to="/login?mode=signup"
               className="px-6 py-3 bg-[#e94560] text-white rounded-lg font-semibold hover:opacity-80 active:scale-95 transition-all"
             >
               Start creating
@@ -167,33 +167,30 @@ export function LandingPage() {
               <h3 className="font-bold text-[#eaeaea] text-lg mb-1">Free</h3>
               <p className="text-[#e94560] text-3xl font-bold mb-4">$0</p>
               <ul className="text-[#8888aa] text-sm space-y-2 mb-6">
-                {['Unlimited projects', 'All drawing tools', 'PNG / JPEG / WebP export', 'Up to 32× scale export', 'Local auto-save'].map(f => (
+                {['Up to 10 projects', 'All drawing tools', 'PNG / JPEG / WebP export', 'Up to 32× scale export', 'Cloud auto-save'].map(f => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="text-[#2ea043]">✓</span> {f}
                   </li>
                 ))}
               </ul>
-              <Link to="/app" className="block text-center py-2.5 bg-[#533483] text-white rounded-lg text-sm font-semibold hover:opacity-80 transition-all">
-                Get started
+              <Link to="/login?mode=signup" className="block text-center py-2.5 bg-[#533483] text-white rounded-lg text-sm font-semibold hover:opacity-80 transition-all">
+                Get started free
               </Link>
             </div>
             {/* Pro */}
             <div className="bg-[#1a1a2e] border border-[#533483] rounded-xl p-6 relative overflow-hidden">
-              <div className="absolute top-4 right-4 text-xs bg-[#533483] text-white px-2 py-0.5 rounded-full font-semibold">
-                Coming soon
-              </div>
               <h3 className="font-bold text-[#eaeaea] text-lg mb-1">Pro</h3>
-              <p className="text-[#8888aa] text-3xl font-bold mb-4">$?/mo</p>
+              <p className="text-[#e94560] text-3xl font-bold mb-4">$9/mo</p>
               <ul className="text-[#8888aa] text-sm space-y-2 mb-6">
-                {['Everything in Free', 'Cloud sync across devices', 'Public sharing & galleries', 'Team collaboration', 'Priority support'].map(f => (
+                {['Unlimited projects', 'Cloud sync across devices', 'Everything in Free', 'Priority support'].map(f => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="text-[#533483]">✦</span> {f}
                   </li>
                 ))}
               </ul>
-              <button disabled className="w-full py-2.5 bg-[#2a2a4a] text-[#555577] rounded-lg text-sm font-semibold cursor-not-allowed">
-                Coming soon
-              </button>
+              <Link to="/login?upgrade=1" className="block text-center py-2.5 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 transition-all">
+                Get Pro
+              </Link>
             </div>
           </div>
         </div>
@@ -202,12 +199,12 @@ export function LandingPage() {
       {/* CTA */}
       <section className="max-w-2xl mx-auto px-6 py-24 text-center">
         <h2 className="text-3xl font-bold text-[#eaeaea] mb-4">Ready to make something?</h2>
-        <p className="text-[#8888aa] mb-8">No account required. Your work saves automatically.</p>
+        <p className="text-[#8888aa] mb-8">Sign up free. Your work syncs to the cloud automatically.</p>
         <Link
-          to="/app"
+          to="/login?mode=signup"
           className="inline-block px-8 py-4 bg-[#e94560] text-white rounded-xl font-semibold text-lg hover:opacity-80 active:scale-95 transition-all"
         >
-          Open Pixel Wizard
+          Start for free
         </Link>
       </section>
 

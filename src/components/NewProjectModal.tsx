@@ -26,9 +26,9 @@ export function NewProjectModal({ onClose }: Props) {
     return [n, n];
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     const [w, h] = getResolution();
-    const project = createProject(name, w, h);
+    const project = await createProject(name, w, h);
     navigate(`/editor/${project.id}`);
   }
 

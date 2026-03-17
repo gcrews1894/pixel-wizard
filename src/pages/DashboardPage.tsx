@@ -1,14 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Nav } from '../components/Nav';
 import { ProjectCard } from '../components/ProjectCard';
 import { NewProjectModal } from '../components/NewProjectModal';
+import { UpgradeModal } from '../components/UpgradeModal';
 import { useProjectStore } from '../store/projectStore';
+import { useAuth } from '../context/AuthContext';
 
 export function DashboardPage() {
-  const { projects } = useProjectStore();
+  const { user, profile } = useAuth();
+  const { projects, syncFromCloud, projectLimit } = useProjectStore();
   const [showModal, setShowModal] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Sync projects from Supabase when user is authenticated
+  useEffect(() => {
+    if (user && profile) {
+      syncFromCloud(user.id, profile.subscription_status);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, profile?.subscription_status]);
+
+  // Clear ?upgraded=1 query param after successful Stripe checkout
+  useEffect(() => {
+    if (searchParams.get('upgraded') === '1') {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+  const limit = projectLimit();
+  const atLimit = sorted.length >= limit;
+  const isPro = profile?.subscription_status === 'pro';
+
+  function handleNewProject() {
+    if (atLimit) setShowUpgrade(true);
+    else setShowModal(true);
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-[#eaeaea]">
@@ -16,9 +45,24 @@ export function DashboardPage() {
 
       <div className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-[#eaeaea]">My Projects</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-[#eaeaea]">My Projects</h1>
+            {!isPro && limit < Infinity && (
+              <p className="text-[#8888aa] text-sm mt-1">
+                {sorted.length} / {limit} projects
+                {atLimit && (
+                  <button
+                    onClick={() => setShowUpgrade(true)}
+                    className="ml-2 text-[#e94560] hover:underline"
+                  >
+                    Upgrade for unlimited
+                  </button>
+                )}
+              </p>
+            )}
+          </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={handleNewProject}
             className="px-5 py-2.5 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
           >
             + New Project
@@ -33,7 +77,7 @@ export function DashboardPage() {
               Create your first pixel art project and start drawing.
             </p>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={handleNewProject}
               className="px-6 py-3 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
             >
               Create your first project
@@ -43,7 +87,7 @@ export function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {/* New project card */}
             <button
-              onClick={() => setShowModal(true)}
+              onClick={handleNewProject}
               className="aspect-square bg-[#16213e] border-2 border-dashed border-[#2a2a4a] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[#e94560] hover:bg-[#1a1a2e] active:scale-95 transition-all group"
             >
               <span className="text-3xl text-[#555577] group-hover:text-[#e94560] transition-colors">+</span>
@@ -57,7 +101,8 @@ export function DashboardPage() {
         )}
       </div>
 
-      {showModal && <NewProjectModal onClose={() => setShowModal(false)} />}
+      {showModal   && <NewProjectModal onClose={() => setShowModal(false)} />}
+      {showUpgrade && <UpgradeModal   onClose={() => setShowUpgrade(false)} />}
     </div>
   );
 }

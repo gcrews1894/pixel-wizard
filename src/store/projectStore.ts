@@ -1,14 +1,19 @@
 import { create } from 'zustand';
 import type { Project } from '../types/project';
 import type { Pixels } from '../lib/canvas';
+import * as api from '../lib/projectApi';
+
+// ── Guest (localStorage) helpers ─────────────────────────────────────────────
 
 const STORAGE_KEY = 'pixel-wizard-projects';
+export const GUEST_LIMIT = 3;
+export const FREE_LIMIT  = 10;
 
 function makeEmptyPixels(w: number, h: number): Pixels {
   return Array.from({ length: h }, () => Array(w).fill(null));
 }
 
-function load(): Project[] {
+function loadLocal(): Project[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -17,7 +22,7 @@ function load(): Project[] {
   }
 }
 
-function save(projects: Project[]) {
+function saveLocal(projects: Project[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
   } catch {
@@ -25,18 +30,57 @@ function save(projects: Project[]) {
   }
 }
 
+// ── Store ─────────────────────────────────────────────────────────────────────
+
 interface ProjectStore {
   projects: Project[];
-  createProject: (name: string, w: number, h: number) => Project;
-  updateProject: (id: string, partial: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
+  /** null = guest (localStorage mode) */
+  userId: string | null;
+  /** 'free' | 'pro' — only relevant when userId is set */
+  subscriptionStatus: 'free' | 'pro';
+
+  /** Call on sign-in: loads projects from Supabase and switches to cloud mode */
+  syncFromCloud: (userId: string, subscriptionStatus: 'free' | 'pro') => Promise<void>;
+  /** Call on sign-out: reverts to localStorage mode */
+  resetToGuest: () => void;
+
+  projectLimit: () => number;
+
+  createProject: (name: string, w: number, h: number) => Promise<Project>;
+  updateProject: (id: string, partial: Partial<Pick<Project, 'name' | 'pixels' | 'thumbnail'>>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
-  projects: load(),
+  projects: loadLocal(),
+  userId: null,
+  subscriptionStatus: 'free',
 
-  createProject: (name, w, h) => {
+  syncFromCloud: async (userId, subscriptionStatus) => {
+    const projects = await api.listProjects(userId);
+    set({ projects, userId, subscriptionStatus });
+  },
+
+  resetToGuest: () => {
+    set({ projects: loadLocal(), userId: null, subscriptionStatus: 'free' });
+  },
+
+  projectLimit: () => {
+    const { userId, subscriptionStatus } = get();
+    if (!userId) return GUEST_LIMIT;
+    if (subscriptionStatus === 'pro') return Infinity;
+    return FREE_LIMIT;
+  },
+
+  createProject: async (name, w, h) => {
+    const { userId, projects } = get();
+    if (userId) {
+      const project = await api.createProject(userId, name, w, h);
+      set({ projects: [project, ...projects] });
+      return project;
+    }
+    // Guest path
     const project: Project = {
       id: crypto.randomUUID(),
       name: name.trim() || 'Untitled',
@@ -47,24 +91,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       pixels: makeEmptyPixels(w, h),
       thumbnail: '',
     };
-    const projects = [project, ...get().projects];
-    save(projects);
-    set({ projects });
+    const updated = [project, ...projects];
+    saveLocal(updated);
+    set({ projects: updated });
     return project;
   },
 
-  updateProject: (id, partial) => {
-    const projects = get().projects.map(p =>
+  updateProject: async (id, partial) => {
+    const { userId, projects } = get();
+    if (userId) {
+      await api.updateProject(id, partial);
+    }
+    const updated = projects.map(p =>
       p.id === id ? { ...p, ...partial, updatedAt: Date.now() } : p,
     );
-    save(projects);
-    set({ projects });
+    if (!userId) saveLocal(updated);
+    set({ projects: updated });
   },
 
-  deleteProject: (id) => {
-    const projects = get().projects.filter(p => p.id !== id);
-    save(projects);
-    set({ projects });
+  deleteProject: async (id) => {
+    const { userId, projects } = get();
+    if (userId) {
+      await api.deleteProject(id);
+    }
+    const updated = projects.filter(p => p.id !== id);
+    if (!userId) saveLocal(updated);
+    set({ projects: updated });
   },
 
   getProject: (id) => get().projects.find(p => p.id === id),
