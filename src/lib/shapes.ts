@@ -85,11 +85,11 @@ export function ellipseCells(
   }
 
   /* ── Outline: Zingl's midpoint ellipse algorithm ─────────────────────── */
-  const seen  = new Set<number>();          // packed key: y*65536+x
+  const seen  = new Set<string>();
   const cells: [number, number][] = [];
 
   function emit(x: number, y: number) {
-    const key = y * 65536 + x;
+    const key = `${x},${y}`;
     if (!seen.has(key)) { seen.add(key); cells.push([x, y]); }
   }
 

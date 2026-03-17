@@ -37,8 +37,16 @@ export function Header({ projectId }: Props) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridW, gridH]);
+
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(project?.name ?? 'Untitled');
+
+  // Sync name input when project loads (e.g. after store hydration)
+  useEffect(() => {
+    if (project) setNameInput(project.name);
+  }, [project?.name]);
+
+  if (!project) return null;
 
   function handlePresetChange(val: string) {
     setPreset(val);
