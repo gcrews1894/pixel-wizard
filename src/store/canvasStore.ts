@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { floodFill, type Pixels } from '../lib/canvas';
 
-export type Tool = 'draw' | 'erase' | 'fill' | 'pick';
+export type Tool = 'draw' | 'erase' | 'fill' | 'pick' | 'line' | 'rect' | 'ellipse';
 
 interface CanvasState {
   gridW: number;
@@ -12,6 +12,11 @@ interface CanvasState {
   showGrid: boolean;
   recentColors: string[];
   undoStack: Pixels[];
+
+  // Shape tool state
+  shapeStart: { x: number; y: number } | null;
+  previewCells: [number, number][];
+  filledShape: boolean;
 
   // Actions
   setTool: (tool: Tool) => void;
@@ -26,6 +31,12 @@ interface CanvasState {
   clearCanvas: () => void;
   addRecentColor: (color: string) => void;
   hydrateFromStorage: (state: Partial<StoredState>) => void;
+
+  // Shape actions
+  setShapeStart: (pt: { x: number; y: number } | null) => void;
+  setPreviewCells: (cells: [number, number][]) => void;
+  setFilledShape: (filled: boolean) => void;
+  commitPreview: () => void;
 }
 
 export interface StoredState {
@@ -59,7 +70,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   recentColors: [],
   undoStack: [],
 
-  setTool: (tool) => set({ tool }),
+  shapeStart: null,
+  previewCells: [],
+  filledShape: false,
+
+  setTool: (tool) => set({ tool, shapeStart: null, previewCells: [] }),
 
   setCurrentColor: (color) => set({ currentColor: color }),
 
@@ -105,12 +120,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setResolution: (w, h) => {
     const { pixels } = get();
     const next = resizePixels(pixels, w, h);
-    set({ gridW: w, gridH: h, pixels: next, undoStack: [] });
+    set({ gridW: w, gridH: h, pixels: next, undoStack: [], shapeStart: null, previewCells: [] });
   },
 
   clearCanvas: () => {
     const { gridW, gridH } = get();
-    set({ pixels: makeEmptyPixels(gridW, gridH), undoStack: [] });
+    set({ pixels: makeEmptyPixels(gridW, gridH), undoStack: [], shapeStart: null, previewCells: [] });
   },
 
   addRecentColor: (color) => {
@@ -128,5 +143,21 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       recentColors: saved.recentColors ?? [],
       showGrid: saved.showGrid ?? true,
     });
+  },
+
+  setShapeStart: (pt) => set({ shapeStart: pt }),
+  setPreviewCells: (cells) => set({ previewCells: cells }),
+  setFilledShape: (filled) => set({ filledShape: filled }),
+
+  commitPreview: () => {
+    const { pixels, previewCells, currentColor, gridW, gridH } = get();
+    if (previewCells.length === 0) return;
+    const next = pixels.map(row => [...row]);
+    for (const [x, y] of previewCells) {
+      if (x >= 0 && x < gridW && y >= 0 && y < gridH) {
+        next[y][x] = currentColor;
+      }
+    }
+    set({ pixels: next, previewCells: [], shapeStart: null });
   },
 }));

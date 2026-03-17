@@ -1,60 +1,64 @@
 import { useEffect, useRef } from 'react';
 import { useCanvasStore, type StoredState } from '../store/canvasStore';
+import { useProjectStore } from '../store/projectStore';
+import { exportCanvas } from '../lib/canvas';
 
-const STORAGE_KEY = 'pixel-wizard-state';
 const DEBOUNCE_MS = 400;
 
-export function usePersistence() {
+export function usePersistence(projectId: string) {
   const store = useCanvasStore();
   const hydrateFromStorage = useCanvasStore(s => s.hydrateFromStorage);
+  const { getProject, updateProject } = useProjectStore();
   const hasHydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Restore on mount (runs once)
+  // Load project into canvas store on mount / when projectId changes
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved: Partial<StoredState> = JSON.parse(raw);
-        hydrateFromStorage(saved);
-      }
-    } catch {
-      // corrupt storage — ignore
+    hasHydrated.current = false;
+    const project = getProject(projectId);
+    if (project) {
+      hydrateFromStorage({
+        gridW: project.gridW,
+        gridH: project.gridH,
+        pixels: project.pixels,
+        currentColor: store.currentColor,
+        recentColors: store.recentColors,
+        showGrid: store.showGrid,
+      });
     }
     hasHydrated.current = true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [projectId]);
 
-  // Save on every relevant state change (debounced)
+  // Auto-save back to project store (debounced)
   useEffect(() => {
     if (!hasHydrated.current) return;
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      try {
-        const toSave: StoredState = {
-          gridW: store.gridW,
-          gridH: store.gridH,
-          pixels: store.pixels,
-          currentColor: store.currentColor,
-          recentColors: store.recentColors,
-          showGrid: store.showGrid,
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      } catch {
-        // storage full or unavailable — ignore
-      }
+      const toSave: Partial<StoredState> = {
+        gridW: store.gridW,
+        gridH: store.gridH,
+        pixels: store.pixels,
+      };
+      // Generate thumbnail (small scale for speed)
+      const thumbnail = exportCanvas(store.pixels, store.gridW, store.gridH, {
+        scale: Math.max(1, Math.floor(64 / Math.max(store.gridW, store.gridH))),
+        format: 'png',
+        includeGrid: false,
+        transparent: true,
+      });
+      updateProject(projectId, { ...toSave, thumbnail });
     }, DEBOUNCE_MS);
 
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, [
+    projectId,
     store.gridW,
     store.gridH,
     store.pixels,
-    store.currentColor,
-    store.recentColors,
-    store.showGrid,
+    updateProject,
   ]);
 }

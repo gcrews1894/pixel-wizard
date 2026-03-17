@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useCanvasStore } from '../store/canvasStore';
 import { renderPixels, renderGrid } from '../lib/canvas';
 import { type ViewportControls } from '../hooks/useViewport';
+import { bresenhamLine, rectangleCells, ellipseCells } from '../lib/shapes';
 
 const BASE_CELL = 16; // canvas pixels per grid cell
 
@@ -10,10 +11,11 @@ interface Props {
 }
 
 export function Canvas({ viewportControls }: Props) {
-  const pixelRef  = useRef<HTMLCanvasElement>(null);
-  const gridRef   = useRef<HTMLCanvasElement>(null);
-  const isDrawing = useRef(false);
-  const lastPanPt = useRef<{ x: number; y: number } | null>(null);
+  const pixelRef   = useRef<HTMLCanvasElement>(null);
+  const gridRef    = useRef<HTMLCanvasElement>(null);
+  const previewRef = useRef<HTMLCanvasElement>(null);
+  const isDrawing  = useRef(false);
+  const lastPanPt  = useRef<{ x: number; y: number } | null>(null);
   const lastTouchDist = useRef<number | null>(null);
   const lastTouchMid  = useRef<{ x: number; y: number } | null>(null);
 
@@ -23,12 +25,16 @@ export function Canvas({ viewportControls }: Props) {
 
   const {
     gridW, gridH, pixels, currentColor, tool, showGrid,
+    shapeStart, previewCells, filledShape,
     setPixel, applyFill, pickColor, setCurrentColor, setTool,
     pushUndo, addRecentColor,
+    setShapeStart, setPreviewCells, commitPreview,
   } = useCanvasStore();
 
   const canvasW = BASE_CELL * gridW;
   const canvasH = BASE_CELL * gridH;
+
+  const isShapeTool = tool === 'line' || tool === 'rect' || tool === 'ellipse';
 
   // ── Rendering ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -48,8 +54,24 @@ export function Canvas({ viewportControls }: Props) {
     }
   }, [showGrid, gridW, gridH, canvasW, canvasH]);
 
+  // Preview layer rendering
+  useEffect(() => {
+    const canvas = previewRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, canvasW, canvasH);
+    if (previewCells.length === 0) return;
+    const cellW = canvasW / gridW;
+    const cellH = canvasH / gridH;
+    ctx.fillStyle = currentColor;
+    ctx.globalAlpha = 0.6;
+    for (const [x, y] of previewCells) {
+      ctx.fillRect(Math.round(x * cellW), Math.round(y * cellH), Math.ceil(cellW), Math.ceil(cellH));
+    }
+    ctx.globalAlpha = 1;
+  }, [previewCells, currentColor, canvasW, canvasH, gridW, gridH]);
+
   // ── Cell hit-testing ──────────────────────────────────────────────────────
-  // getBoundingClientRect already accounts for CSS transform — no changes needed.
   const getCell = useCallback(
     (e: { clientX: number; clientY: number }) => {
       const canvas = pixelRef.current;
@@ -63,6 +85,20 @@ export function Canvas({ viewportControls }: Props) {
     [gridW, gridH],
   );
 
+  // ── Shape preview computation ─────────────────────────────────────────────
+  const computePreview = useCallback(
+    (x: number, y: number) => {
+      if (!shapeStart) return;
+      let cells: [number, number][] = [];
+      if (tool === 'line')    cells = bresenhamLine(shapeStart.x, shapeStart.y, x, y);
+      if (tool === 'rect')    cells = rectangleCells(shapeStart.x, shapeStart.y, x, y, filledShape);
+      if (tool === 'ellipse') cells = ellipseCells(shapeStart.x, shapeStart.y, x, y, filledShape);
+      setPreviewCells(cells);
+    },
+    [shapeStart, tool, filledShape, setPreviewCells],
+  );
+
+  // ── Regular tool application ──────────────────────────────────────────────
   const applyToolAt = useCallback(
     (x: number, y: number, forceErase = false) => {
       if (tool === 'fill') { applyFill(x, y); return; }
@@ -84,10 +120,8 @@ export function Canvas({ viewportControls }: Props) {
       const el = containerRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      const ox = e.clientX - rect.left;
-      const oy = e.clientY - rect.top;
       const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-      zoomAround(zoom * factor, ox, oy);
+      zoomAround(zoom * factor, e.clientX - rect.left, e.clientY - rect.top);
     },
     [zoom, zoomAround, containerRef],
   );
@@ -106,18 +140,19 @@ export function Canvas({ viewportControls }: Props) {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (e.code === 'Space') { e.preventDefault(); spaceHeld.current = true; }
+      if (e.key === 'Escape') { setPreviewCells([]); setShapeStart(null); }
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
-        spaceHeld.current  = false;
-        isPanning.current  = false;
-        lastPanPt.current  = null;
+        spaceHeld.current = false;
+        isPanning.current = false;
+        lastPanPt.current = null;
       }
     };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup',   up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [spaceHeld, isPanning]);
+  }, [spaceHeld, isPanning, setPreviewCells, setShapeStart]);
 
   // ── Zoom keyboard shortcuts ───────────────────────────────────────────────
   useEffect(() => {
@@ -144,6 +179,14 @@ export function Canvas({ viewportControls }: Props) {
     if (e.button !== 0 && e.button !== 2) return;
     const cell = getCell(e);
     if (!cell) return;
+
+    if (isShapeTool && e.button === 0) {
+      pushUndo();
+      setShapeStart(cell);
+      setPreviewCells([[cell.x, cell.y]]);
+      return;
+    }
+
     pushUndo();
     isDrawing.current = true;
     applyToolAt(cell.x, cell.y, e.button === 2);
@@ -155,19 +198,48 @@ export function Canvas({ viewportControls }: Props) {
       lastPanPt.current = { x: e.clientX, y: e.clientY };
       return;
     }
+
+    if (isShapeTool && shapeStart) {
+      const cell = getCell(e);
+      if (cell) computePreview(cell.x, cell.y);
+      return;
+    }
+
     if (!isDrawing.current || tool === 'fill' || tool === 'pick') return;
     const cell = getCell(e);
     if (!cell) return;
     applyToolAt(cell.x, cell.y, e.buttons === 2);
   };
 
-  const onMouseUp = () => {
+  const onMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isPanning.current) {
       isPanning.current = false;
       lastPanPt.current = null;
       return;
     }
+
+    if (isShapeTool && shapeStart) {
+      const cell = getCell(e);
+      if (cell) computePreview(cell.x, cell.y);
+      commitPreview();
+      addRecentColor(currentColor);
+      return;
+    }
+
     if (isDrawing.current) addRecentColor(currentColor);
+    isDrawing.current = false;
+  };
+
+  const onMouseLeave = () => {
+    if (isPanning.current) {
+      isPanning.current = false;
+      lastPanPt.current = null;
+      return;
+    }
+    if (isShapeTool) {
+      setPreviewCells([]);
+      setShapeStart(null);
+    }
     isDrawing.current = false;
   };
 
@@ -225,12 +297,12 @@ export function Canvas({ viewportControls }: Props) {
   // ── Cursor ────────────────────────────────────────────────────────────────
   const toolCursor: Record<string, string> = {
     draw: 'crosshair', erase: 'cell', fill: 'copy', pick: 'zoom-in',
+    line: 'crosshair', rect: 'crosshair', ellipse: 'crosshair',
   };
   const cursor = isPanning.current ? 'grabbing'
     : spaceHeld.current           ? 'grab'
     : (toolCursor[tool] ?? 'crosshair');
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       ref={containerRef}
@@ -239,13 +311,12 @@ export function Canvas({ viewportControls }: Props) {
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
+      onMouseLeave={onMouseLeave}
       onContextMenu={e => e.preventDefault()}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* CSS-transformed canvas wrapper */}
       <div
         style={{
           position: 'absolute',
@@ -257,7 +328,10 @@ export function Canvas({ viewportControls }: Props) {
              className="shadow-2xl shadow-black/60">
           <canvas ref={pixelRef} width={canvasW} height={canvasH}
                   style={{ imageRendering: 'pixelated', display: 'block' }} />
-          <canvas ref={gridRef}  width={canvasW} height={canvasH}
+          <canvas ref={gridRef} width={canvasW} height={canvasH}
+                  style={{ position: 'absolute', top: 0, left: 0,
+                           pointerEvents: 'none', imageRendering: 'pixelated' }} />
+          <canvas ref={previewRef} width={canvasW} height={canvasH}
                   style={{ position: 'absolute', top: 0, left: 0,
                            pointerEvents: 'none', imageRendering: 'pixelated' }} />
         </div>
