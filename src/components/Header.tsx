@@ -44,7 +44,7 @@ export function Header({ projectId }: Props) {
   // Sync name input when project loads (e.g. after store hydration)
   useEffect(() => {
     if (project) setNameInput(project.name);
-  }, [project?.name]);
+  }, [project]);
 
   if (!project) return null;
 
