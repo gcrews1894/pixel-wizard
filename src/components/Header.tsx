@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCanvasStore } from '../store/canvasStore';
 import { useProjectStore } from '../store/projectStore';
@@ -15,10 +15,28 @@ export function Header({ projectId }: Props) {
 
   const project = getProject(projectId);
 
-  const [preset, setPreset] = useState<string>('16');
+  const isKnownPreset = (n: number) => (PRESETS as readonly number[]).includes(n);
+
+  const [preset, setPreset] = useState<string>(() =>
+    isKnownPreset(gridW) && gridW === gridH ? String(gridW) : 'custom',
+  );
   const [customW, setCustomW] = useState(String(gridW));
   const [customH, setCustomH] = useState(String(gridH));
-  const [showCustom, setShowCustom] = useState(false);
+  const [showCustom, setShowCustom] = useState(!isKnownPreset(gridW) || gridW !== gridH);
+
+  // Sync preset dropdown when gridW/gridH change externally (e.g. after hydration)
+  useEffect(() => {
+    if (isKnownPreset(gridW) && gridW === gridH) {
+      setPreset(String(gridW));
+      setShowCustom(false);
+    } else {
+      setPreset('custom');
+      setCustomW(String(gridW));
+      setCustomH(String(gridH));
+      setShowCustom(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridW, gridH]);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(project?.name ?? 'Untitled');
 
