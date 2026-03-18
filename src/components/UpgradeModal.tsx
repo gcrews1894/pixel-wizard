@@ -1,38 +1,28 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   onClose: () => void;
 }
 
 export function UpgradeModal({ onClose }: Props) {
-  const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function handleUpgrade() {
-    if (!session?.access_token) {
-      setError('Session expired. Please sign in again.');
-      return;
-    }
     setBusy(true);
     setError('');
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        },
-      );
-      const json = await res.json();
-      if (json.url) {
-        window.location.href = json.url;
+      const { data, error: fnError } = await supabase.functions.invoke('create-checkout-session');
+      if (fnError) {
+        setError(fnError.message ?? 'Something went wrong. Please try again.');
+        setBusy(false);
+        return;
+      }
+      if (data?.url) {
+        window.location.href = data.url;
       } else {
-        setError(json.error ?? 'Something went wrong. Please try again.');
+        setError(data?.error ?? 'Something went wrong. Please try again.');
         setBusy(false);
       }
     } catch {
