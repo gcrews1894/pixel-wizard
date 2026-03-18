@@ -22,9 +22,17 @@ export function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, profile?.subscription_status]);
 
-  // Clear ?upgraded=1 query param after successful Stripe checkout
+  // Clear ?upgraded=1 after successful Stripe checkout
   useEffect(() => {
     if (searchParams.get('upgraded') === '1') {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Auto-open upgrade modal when redirected with ?upgrade=1
+  useEffect(() => {
+    if (searchParams.get('upgrade') === '1') {
+      setShowUpgrade(true);
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -50,23 +58,25 @@ export function DashboardPage() {
             {!isPro && limit < Infinity && (
               <p className="text-[#8888aa] text-sm mt-1">
                 {sorted.length} / {limit} projects
-                {atLimit && (
-                  <button
-                    onClick={() => setShowUpgrade(true)}
-                    className="ml-2 text-[#e94560] hover:underline"
-                  >
-                    Upgrade for unlimited
-                  </button>
-                )}
               </p>
             )}
           </div>
-          <button
-            onClick={handleNewProject}
-            className="px-5 py-2.5 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
-          >
-            + New Project
-          </button>
+          <div className="flex items-center gap-3">
+            {!isPro && (
+              <button
+                onClick={() => setShowUpgrade(true)}
+                className="px-4 py-2.5 border border-[#533483] text-[#a78bfa] rounded-lg text-sm font-semibold hover:bg-[#533483]/20 transition-all"
+              >
+                Upgrade to Pro
+              </button>
+            )}
+            <button
+              onClick={handleNewProject}
+              className="px-5 py-2.5 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
+            >
+              + New Project
+            </button>
+          </div>
         </div>
 
         {sorted.length === 0 ? (

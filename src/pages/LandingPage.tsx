@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Nav } from '../components/Nav';
+import { useAuth } from '../context/AuthContext';
 
 // Small pixel art sprite that animates on load
 function HeroCanvas() {
@@ -86,6 +87,10 @@ const STEPS = [
 ];
 
 export function LandingPage() {
+  const { user, profile } = useAuth();
+  const isLoggedInFree = !!user && profile?.subscription_status !== 'pro';
+  const getProHref = isLoggedInFree ? '/app?upgrade=1' : '/login?upgrade=1';
+
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-[#eaeaea]">
       <Nav />
@@ -188,7 +193,7 @@ export function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link to="/login?upgrade=1" className="block text-center py-2.5 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 transition-all">
+              <Link to={getProHref} className="block text-center py-2.5 bg-[#e94560] text-white rounded-lg text-sm font-semibold hover:opacity-80 transition-all">
                 Get Pro
               </Link>
             </div>

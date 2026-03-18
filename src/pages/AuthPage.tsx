@@ -8,6 +8,7 @@ export function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
+  const upgrading = searchParams.get('upgrade') === '1';
 
   const [tab, setTab] = useState<'signin' | 'signup'>(defaultTab);
   const [email, setEmail] = useState('');
@@ -18,8 +19,8 @@ export function AuthPage() {
 
   // Redirect already-authenticated users
   useEffect(() => {
-    if (!loading && user) navigate('/app', { replace: true });
-  }, [user, loading, navigate]);
+    if (!loading && user) navigate(upgrading ? '/app?upgrade=1' : '/app', { replace: true });
+  }, [user, loading, navigate, upgrading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,7 +35,7 @@ export function AuthPage() {
     } else {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) setError(err.message);
-      else navigate('/app', { replace: true });
+      else navigate(upgrading ? '/app?upgrade=1' : '/app', { replace: true });
     }
 
     setBusy(false);
@@ -44,7 +45,7 @@ export function AuthPage() {
     setError('');
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/app` },
+      options: { redirectTo: `${window.location.origin}/app${upgrading ? '?upgrade=1' : ''}` },
     });
     if (err) setError(err.message);
   }
