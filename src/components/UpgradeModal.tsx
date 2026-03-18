@@ -1,26 +1,30 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 interface Props {
   onClose: () => void;
 }
 
 export function UpgradeModal({ onClose }: Props) {
+  const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function handleUpgrade() {
+    if (!session?.access_token) {
+      setError('Session expired. Please sign in again.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
         },
       );
