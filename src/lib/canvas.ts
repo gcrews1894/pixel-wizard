@@ -1,5 +1,7 @@
 export type Pixels = (string | null)[][];
 
+import type { SelectionState } from '../store/canvasStore';
+
 /** Draw a checkerboard pattern for transparent cells */
 export function drawCheckerboard(
   ctx: CanvasRenderingContext2D,
@@ -169,4 +171,69 @@ export function exportCanvas(
   const mime =
     format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png';
   return canvas.toDataURL(mime, 0.92);
+}
+
+/** Render selection overlay (dragging rect or floating pixels + border) onto the preview canvas */
+export function renderSelectionOverlay(
+  ctx: CanvasRenderingContext2D,
+  selection: SelectionState,
+  gridW: number,
+  gridH: number,
+  canvasW: number,
+  canvasH: number,
+): void {
+  const cellW = canvasW / gridW;
+  const cellH = canvasH / gridH;
+  ctx.clearRect(0, 0, canvasW, canvasH);
+
+  let rectX: number, rectY: number, rectW: number, rectH: number;
+
+  if (selection.phase === 'dragging') {
+    const { startX, startY, endX, endY } = selection;
+    rectX = Math.min(startX, endX);
+    rectY = Math.min(startY, endY);
+    rectW = Math.abs(endX - startX) + 1;
+    rectH = Math.abs(endY - startY) + 1;
+  } else {
+    const { currentX, currentY, width, height, pixels: sp } = selection;
+    rectX = currentX;
+    rectY = currentY;
+    rectW = width;
+    rectH = height;
+    // Draw floating pixels
+    for (let dy = 0; dy < height; dy++) {
+      for (let dx = 0; dx < width; dx++) {
+        const col = sp[dy][dx];
+        if (col) {
+          ctx.fillStyle = col;
+          ctx.fillRect(
+            Math.round((currentX + dx) * cellW),
+            Math.round((currentY + dy) * cellH),
+            Math.ceil(cellW),
+            Math.ceil(cellH),
+          );
+        }
+      }
+    }
+  }
+
+  // Dashed border — draw twice for contrast (white then black offset)
+  const bx = Math.round(rectX * cellW);
+  const by = Math.round(rectY * cellH);
+  const bw = Math.round(rectW * cellW);
+  const bh = Math.round(rectH * cellH);
+
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineDashOffset = 0;
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineDashOffset = 4;
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+
+  ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
 }

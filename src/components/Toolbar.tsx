@@ -6,6 +6,7 @@ const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = [
   { id: 'erase',   icon: '🧹',  label: 'Erase',   key: 'E' },
   { id: 'fill',    icon: '🪣',  label: 'Fill',    key: 'F' },
   { id: 'pick',    icon: '🔍',  label: 'Pick',    key: 'I' },
+  { id: 'select',  icon: '▣',   label: 'Select',  key: 'S' },
   { id: 'line',    icon: '╱',   label: 'Line',    key: 'L' },
   { id: 'rect',    icon: '▭',   label: 'Rect',    key: 'R' },
   { id: 'ellipse', icon: '○',   label: 'Ellipse', key: 'O' },
@@ -25,6 +26,7 @@ export function Toolbar() {
       if (e.key === 'e' || e.key === 'E') setTool('erase');
       if (e.key === 'f' || e.key === 'F') setTool('fill');
       if (e.key === 'i' || e.key === 'I') setTool('pick');
+      if (e.key === 's' || e.key === 'S') setTool('select');
       if (e.key === 'l' || e.key === 'L') setTool('line');
       if (e.key === 'r' || e.key === 'R') setTool('rect');
       if (e.key === 'o' || e.key === 'O') setTool('ellipse');
@@ -78,7 +80,7 @@ export function Toolbar() {
       )}
 
       <p className="text-[#555577] text-[11px] mt-3 leading-relaxed">
-        Right-click = erase<br />Ctrl+Z = undo
+        Right-click = erase<br />Ctrl+Z = undo<br />S = select &amp; move
       </p>
     </div>
   );

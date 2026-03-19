@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { floodFill, type Pixels } from '../lib/canvas';
 
-export type Tool = 'draw' | 'erase' | 'fill' | 'pick' | 'line' | 'rect' | 'ellipse';
+export type Tool = 'draw' | 'erase' | 'fill' | 'pick' | 'line' | 'rect' | 'ellipse' | 'select';
+
+export type SelectionState =
+  | { phase: 'dragging'; startX: number; startY: number; endX: number; endY: number }
+  | { phase: 'floating'; originX: number; originY: number; width: number; height: number;
+      pixels: (string | null)[][]; currentX: number; currentY: number };
 
 interface CanvasState {
   gridW: number;
@@ -17,6 +22,9 @@ interface CanvasState {
   shapeStart: { x: number; y: number } | null;
   previewCells: [number, number][];
   filledShape: boolean;
+
+  // Selection tool state
+  selection: SelectionState | null;
 
   // Actions
   setTool: (tool: Tool) => void;
@@ -37,6 +45,14 @@ interface CanvasState {
   setPreviewCells: (cells: [number, number][]) => void;
   setFilledShape: (filled: boolean) => void;
   commitPreview: () => void;
+
+  // Selection actions
+  startSelectionDrag: (x: number, y: number) => void;
+  updateSelectionDrag: (x: number, y: number) => void;
+  liftSelection: () => void;
+  moveSelectionTo: (x: number, y: number) => void;
+  dropSelection: () => void;
+  cancelSelection: () => void;
 }
 
 export interface StoredState {
@@ -73,8 +89,23 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   shapeStart: null,
   previewCells: [],
   filledShape: false,
+  selection: null,
 
-  setTool: (tool) => set({ tool, shapeStart: null, previewCells: [] }),
+  setTool: (tool) => {
+    const { selection, pixels, gridW, gridH } = get();
+    if (selection?.phase === 'floating') {
+      const next = pixels.map(row => [...row]);
+      const { currentX, currentY, width, height, pixels: sp } = selection;
+      for (let dy = 0; dy < height; dy++)
+        for (let dx = 0; dx < width; dx++) {
+          const tx = currentX + dx, ty = currentY + dy;
+          if (tx >= 0 && tx < gridW && ty >= 0 && ty < gridH && sp[dy][dx] !== null)
+            next[ty][tx] = sp[dy][dx];
+        }
+      set({ pixels: next });
+    }
+    set({ tool, shapeStart: null, previewCells: [], selection: null });
+  },
 
   setCurrentColor: (color) => set({ currentColor: color }),
 
@@ -120,12 +151,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setResolution: (w, h) => {
     const { pixels } = get();
     const next = resizePixels(pixels, w, h);
-    set({ gridW: w, gridH: h, pixels: next, undoStack: [], shapeStart: null, previewCells: [] });
+    set({ gridW: w, gridH: h, pixels: next, undoStack: [], shapeStart: null, previewCells: [], selection: null });
   },
 
   clearCanvas: () => {
     const { gridW, gridH } = get();
-    set({ pixels: makeEmptyPixels(gridW, gridH), undoStack: [], shapeStart: null, previewCells: [] });
+    set({ pixels: makeEmptyPixels(gridW, gridH), undoStack: [], shapeStart: null, previewCells: [], selection: null });
   },
 
   addRecentColor: (color) => {
@@ -159,5 +190,76 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }
     }
     set({ pixels: next, previewCells: [], shapeStart: null });
+  },
+
+  startSelectionDrag: (x, y) => {
+    set({ selection: { phase: 'dragging', startX: x, startY: y, endX: x, endY: y } });
+  },
+
+  updateSelectionDrag: (x, y) => {
+    const { selection } = get();
+    if (selection?.phase !== 'dragging') return;
+    set({ selection: { ...selection, endX: x, endY: y } });
+  },
+
+  liftSelection: () => {
+    const { selection, pixels, gridW, gridH } = get();
+    if (selection?.phase !== 'dragging') return;
+    const { startX, startY, endX, endY } = selection;
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const w = Math.abs(endX - startX) + 1;
+    const h = Math.abs(endY - startY) + 1;
+    // Capture pixels
+    const captured: (string | null)[][] = Array.from({ length: h }, (_, dy) =>
+      Array.from({ length: w }, (_, dx) => pixels[y + dy]?.[x + dx] ?? null),
+    );
+    // Clear the region
+    const next = pixels.map(row => [...row]);
+    for (let dy = 0; dy < h; dy++)
+      for (let dx = 0; dx < w; dx++)
+        if (y + dy < gridH && x + dx < gridW) next[y + dy][x + dx] = null;
+    set({
+      pixels: next,
+      selection: { phase: 'floating', originX: x, originY: y, width: w, height: h,
+                   pixels: captured, currentX: x, currentY: y },
+    });
+  },
+
+  moveSelectionTo: (x, y) => {
+    const { selection } = get();
+    if (selection?.phase !== 'floating') return;
+    set({ selection: { ...selection, currentX: x, currentY: y } });
+  },
+
+  dropSelection: () => {
+    const { selection, pixels, gridW, gridH } = get();
+    if (selection?.phase !== 'floating') return;
+    const { currentX, currentY, width, height, pixels: sp } = selection;
+    const next = pixels.map(row => [...row]);
+    for (let dy = 0; dy < height; dy++)
+      for (let dx = 0; dx < width; dx++) {
+        const tx = currentX + dx, ty = currentY + dy;
+        if (tx >= 0 && tx < gridW && ty >= 0 && ty < gridH && sp[dy][dx] !== null)
+          next[ty][tx] = sp[dy][dx];
+      }
+    set({ pixels: next, selection: null });
+  },
+
+  cancelSelection: () => {
+    const { selection, pixels, gridW, gridH } = get();
+    if (selection?.phase !== 'floating') {
+      set({ selection: null });
+      return;
+    }
+    const { originX, originY, width, height, pixels: sp } = selection;
+    const next = pixels.map(row => [...row]);
+    for (let dy = 0; dy < height; dy++)
+      for (let dx = 0; dx < width; dx++) {
+        const tx = originX + dx, ty = originY + dy;
+        if (tx >= 0 && tx < gridW && ty >= 0 && ty < gridH)
+          next[ty][tx] = sp[dy][dx];
+      }
+    set({ pixels: next, selection: null });
   },
 }));

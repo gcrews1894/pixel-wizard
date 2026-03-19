@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useCanvasStore } from '../store/canvasStore';
-import { renderPixels, renderGrid } from '../lib/canvas';
+import { renderPixels, renderGrid, renderSelectionOverlay } from '../lib/canvas';
 import { type ViewportControls } from '../hooks/useViewport';
 import { bresenhamLine, rectangleCells, ellipseCells } from '../lib/shapes';
 
@@ -18,6 +18,8 @@ export function Canvas({ viewportControls }: Props) {
   const lastPanPt  = useRef<{ x: number; y: number } | null>(null);
   const lastTouchDist = useRef<number | null>(null);
   const lastTouchMid  = useRef<{ x: number; y: number } | null>(null);
+  const selectionMoving     = useRef(false);
+  const selectionMoveOffset = useRef<{ dx: number; dy: number } | null>(null);
 
   const { viewport, containerRef, zoomAround, zoomStep, fitToWindow, panBy, isPanning, spaceHeld } =
     viewportControls;
@@ -26,15 +28,19 @@ export function Canvas({ viewportControls }: Props) {
   const {
     gridW, gridH, pixels, currentColor, tool, showGrid,
     shapeStart, previewCells, filledShape,
+    selection,
     setPixel, applyFill, pickColor, setCurrentColor, setTool,
     pushUndo, addRecentColor,
     setShapeStart, setPreviewCells, commitPreview,
+    startSelectionDrag, updateSelectionDrag, liftSelection,
+    moveSelectionTo, dropSelection, cancelSelection,
   } = useCanvasStore();
 
   const canvasW = BASE_CELL * gridW;
   const canvasH = BASE_CELL * gridH;
 
   const isShapeTool = tool === 'line' || tool === 'rect' || tool === 'ellipse';
+  const isSelectTool = tool === 'select';
 
   // ── Rendering ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -60,6 +66,12 @@ export function Canvas({ viewportControls }: Props) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, canvasW, canvasH);
+
+    if (selection) {
+      renderSelectionOverlay(ctx, selection, gridW, gridH, canvasW, canvasH);
+      return;
+    }
+
     if (previewCells.length === 0) return;
     const cellW = canvasW / gridW;
     const cellH = canvasH / gridH;
@@ -69,7 +81,7 @@ export function Canvas({ viewportControls }: Props) {
       ctx.fillRect(Math.round(x * cellW), Math.round(y * cellH), Math.ceil(cellW), Math.ceil(cellH));
     }
     ctx.globalAlpha = 1;
-  }, [previewCells, currentColor, canvasW, canvasH, gridW, gridH]);
+  }, [previewCells, selection, currentColor, canvasW, canvasH, gridW, gridH]);
 
   // ── Cell hit-testing ──────────────────────────────────────────────────────
   const getCell = useCallback(
@@ -140,7 +152,11 @@ export function Canvas({ viewportControls }: Props) {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (e.code === 'Space') { e.preventDefault(); spaceHeld.current = true; }
-      if (e.key === 'Escape') { setPreviewCells([]); setShapeStart(null); }
+      if (e.key === 'Escape') {
+        setPreviewCells([]);
+        setShapeStart(null);
+        cancelSelection();
+      }
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -180,6 +196,26 @@ export function Canvas({ viewportControls }: Props) {
     const cell = getCell(e);
     if (!cell) return;
 
+    if (isSelectTool && e.button === 0) {
+      if (selection?.phase === 'floating') {
+        const { currentX, currentY, width, height } = selection;
+        const inside = cell.x >= currentX && cell.x < currentX + width
+                    && cell.y >= currentY && cell.y < currentY + height;
+        if (inside) {
+          selectionMoving.current = true;
+          selectionMoveOffset.current = { dx: cell.x - currentX, dy: cell.y - currentY };
+        } else {
+          dropSelection();
+          pushUndo();
+          startSelectionDrag(cell.x, cell.y);
+        }
+      } else {
+        pushUndo();
+        startSelectionDrag(cell.x, cell.y);
+      }
+      return;
+    }
+
     if (isShapeTool && e.button === 0) {
       pushUndo();
       setShapeStart(cell);
@@ -196,6 +232,19 @@ export function Canvas({ viewportControls }: Props) {
     if (isPanning.current && lastPanPt.current) {
       panBy(e.clientX - lastPanPt.current.x, e.clientY - lastPanPt.current.y);
       lastPanPt.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    if (isSelectTool) {
+      const cell = getCell(e);
+      if (selectionMoving.current && selectionMoveOffset.current && cell) {
+        moveSelectionTo(
+          cell.x - selectionMoveOffset.current.dx,
+          cell.y - selectionMoveOffset.current.dy,
+        );
+      } else if (selection?.phase === 'dragging' && cell) {
+        updateSelectionDrag(cell.x, cell.y);
+      }
       return;
     }
 
@@ -218,6 +267,16 @@ export function Canvas({ viewportControls }: Props) {
       return;
     }
 
+    if (isSelectTool) {
+      if (selectionMoving.current) {
+        selectionMoving.current = false;
+        selectionMoveOffset.current = null;
+      } else if (selection?.phase === 'dragging') {
+        liftSelection();
+      }
+      return;
+    }
+
     if (isShapeTool && shapeStart) {
       const cell = getCell(e);
       if (cell) computePreview(cell.x, cell.y);
@@ -234,6 +293,11 @@ export function Canvas({ viewportControls }: Props) {
     if (isPanning.current) {
       isPanning.current = false;
       lastPanPt.current = null;
+      return;
+    }
+    if (isSelectTool) {
+      selectionMoving.current = false;
+      selectionMoveOffset.current = null;
       return;
     }
     if (isShapeTool) {
@@ -298,6 +362,7 @@ export function Canvas({ viewportControls }: Props) {
   const toolCursor: Record<string, string> = {
     draw: 'crosshair', erase: 'cell', fill: 'copy', pick: 'zoom-in',
     line: 'crosshair', rect: 'crosshair', ellipse: 'crosshair',
+    select: selectionMoving.current ? 'move' : 'default',
   };
   const cursor = isPanning.current ? 'grabbing'
     : spaceHeld.current           ? 'grab'
