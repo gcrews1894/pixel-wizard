@@ -6,12 +6,17 @@ import { NewProjectModal } from '../components/NewProjectModal';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { useProjectStore } from '../store/projectStore';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+
+type SortKey = 'updated' | 'created' | 'name';
 
 export function DashboardPage() {
   const { user, profile } = useAuth();
   const { projects, syncFromCloud, projectLimit } = useProjectStore();
   const [showModal, setShowModal] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('updated');
+  const [portalLoading, setPortalLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Sync projects from Supabase when user is authenticated
@@ -37,7 +42,11 @@ export function DashboardPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+  const sorted = [...projects].sort((a, b) => {
+    if (sortKey === 'name')    return a.name.localeCompare(b.name);
+    if (sortKey === 'created') return b.createdAt - a.createdAt;
+    return b.updatedAt - a.updatedAt;
+  });
   const limit = projectLimit();
   const atLimit = sorted.length >= limit;
   const isPro = profile?.subscription_status === 'pro';
@@ -45,6 +54,22 @@ export function DashboardPage() {
   function handleNewProject() {
     if (atLimit) setShowUpgrade(true);
     else setShowModal(true);
+  }
+
+  async function handleManageBilling() {
+    setPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error || !data?.url) throw error ?? new Error('No portal URL');
+      window.location.href = data.url;
+    } catch {
+      alert('Could not open billing portal. Please try again.');
+    } finally {
+      setPortalLoading(false);
+    }
   }
 
   return (
@@ -62,7 +87,27 @@ export function DashboardPage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {!isPro && (
+            {/* Sort control */}
+            {sorted.length > 1 && (
+              <select
+                value={sortKey}
+                onChange={e => setSortKey(e.target.value as SortKey)}
+                className="bg-[#16213e] border border-[#2a2a4a] text-[#8888aa] text-sm rounded-lg px-3 py-2 outline-none hover:border-[#533483] transition-colors cursor-pointer"
+              >
+                <option value="updated">Last modified</option>
+                <option value="created">Date created</option>
+                <option value="name">Name</option>
+              </select>
+            )}
+            {isPro ? (
+              <button
+                onClick={handleManageBilling}
+                disabled={portalLoading}
+                className="px-4 py-2.5 border border-[#2a2a4a] text-[#8888aa] rounded-lg text-sm font-semibold hover:border-[#533483] hover:text-[#a78bfa] transition-all disabled:opacity-50"
+              >
+                {portalLoading ? 'Loading…' : 'Manage Billing'}
+              </button>
+            ) : (
               <button
                 onClick={() => setShowUpgrade(true)}
                 className="px-4 py-2.5 border border-[#533483] text-[#a78bfa] rounded-lg text-sm font-semibold hover:bg-[#533483]/20 transition-all"

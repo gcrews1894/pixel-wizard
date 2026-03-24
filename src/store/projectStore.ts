@@ -47,6 +47,7 @@ interface ProjectStore {
   projectLimit: () => number;
 
   createProject: (name: string, w: number, h: number) => Promise<Project>;
+  duplicateProject: (id: string) => Promise<void>;
   updateProject: (id: string, partial: Partial<Pick<Project, 'name' | 'pixels' | 'thumbnail'>>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
@@ -95,6 +96,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     saveLocal(updated);
     set({ projects: updated });
     return project;
+  },
+
+  duplicateProject: async (id) => {
+    const { userId, projects } = get();
+    const source = projects.find(p => p.id === id);
+    if (!source) return;
+    if (userId) {
+      const copy = await api.duplicateProject(userId, source);
+      set({ projects: [copy, ...projects] });
+    } else {
+      const copy: Project = {
+        ...source,
+        id: crypto.randomUUID(),
+        name: `${source.name} (copy)`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      const updated = [copy, ...projects];
+      saveLocal(updated);
+      set({ projects: updated });
+    }
   },
 
   updateProject: async (id, partial) => {

@@ -51,6 +51,23 @@ export async function createProject(
   return rowToProject(data);
 }
 
+export async function duplicateProject(userId: string, source: Project): Promise<Project> {
+  const { data, error } = await supabase
+    .from('projects')
+    .insert({
+      user_id: userId,
+      name: `${source.name} (copy)`,
+      grid_w: source.gridW,
+      grid_h: source.gridH,
+      pixels: source.pixels,
+      thumbnail: source.thumbnail,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToProject(data);
+}
+
 export async function updateProject(
   id: string,
   partial: Partial<Pick<Project, 'name' | 'pixels' | 'thumbnail'>>,

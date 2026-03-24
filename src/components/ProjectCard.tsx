@@ -17,7 +17,7 @@ interface Props {
 
 export function ProjectCard({ project }: Props) {
   const navigate = useNavigate();
-  const { updateProject, deleteProject } = useProjectStore();
+  const { updateProject, deleteProject, duplicateProject } = useProjectStore();
   const [isRenaming, setIsRenaming] = useState(false);
   const [nameInput, setNameInput] = useState(project.name);
 
@@ -93,7 +93,15 @@ export function ProjectCard({ project }: Props) {
             Open
           </button>
           <button
+            onClick={() => duplicateProject(project.id)}
+            title="Duplicate"
+            className="px-3 py-1.5 bg-[#1a1a2e] border border-[#2a2a4a] text-[#8888aa] rounded-md text-xs hover:border-[#533483] hover:text-[#a78bfa] active:scale-95 transition-all"
+          >
+            ⧉
+          </button>
+          <button
             onClick={handleDelete}
+            title="Delete"
             className="px-3 py-1.5 bg-[#1a1a2e] border border-[#2a2a4a] text-[#8888aa] rounded-md text-xs hover:border-[#e94560] hover:text-[#e94560] active:scale-95 transition-all"
           >
             ✕
