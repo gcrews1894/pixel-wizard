@@ -37,6 +37,7 @@ interface CanvasState {
   undo: () => void;
   setResolution: (w: number, h: number) => void;
   clearCanvas: () => void;
+  setPixels: (pixels: Pixels) => void;
   addRecentColor: (color: string) => void;
   hydrateFromStorage: (state: Partial<StoredState>) => void;
 
@@ -157,6 +158,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   clearCanvas: () => {
     const { gridW, gridH } = get();
     set({ pixels: makeEmptyPixels(gridW, gridH), undoStack: [], shapeStart: null, previewCells: [], selection: null });
+  },
+
+  setPixels: (newPixels) => {
+    set({ pixels: newPixels, shapeStart: null, previewCells: [], selection: null });
   },
 
   addRecentColor: (color) => {

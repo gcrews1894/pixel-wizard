@@ -5,6 +5,7 @@ import { Canvas } from '../components/Canvas';
 import { Toolbar } from '../components/Toolbar';
 import { ColorPicker } from '../components/ColorPicker';
 import { DownloadPanel } from '../components/DownloadPanel';
+import { GeneratePanel } from '../components/GeneratePanel';
 import { usePersistence } from '../hooks/usePersistence';
 import { useViewport } from '../hooks/useViewport';
 import { useProjectStore } from '../store/projectStore';
@@ -46,6 +47,8 @@ export function EditorPage() {
           <Toolbar />
           <div className="h-px bg-[#2a2a4a]" />
           <ColorPicker />
+          <div className="h-px bg-[#2a2a4a]" />
+          <GeneratePanel />
         </aside>
 
         {/* Canvas area */}
