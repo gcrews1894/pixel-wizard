@@ -1,7 +1,5 @@
-import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2?target=deno';
 
-const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -67,57 +65,75 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Call Claude
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 8192,
-    system: `You are a pixel art generator. Given a subject and canvas size, you output a pixel art grid.
+  // Call Anthropic API directly via fetch (avoids Deno npm: compatibility issues)
+  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8192,
+      system: `You are a pixel art generator. Given a subject and canvas size, you output a pixel art grid.
 The grid must have exactly ${gridH} rows and ${gridW} columns.
 Each cell must be either a hex color string (e.g. "#e94560") or null for transparent/empty.
 Use null generously for the background — only fill cells that are part of the subject.
 Use a small, harmonious palette of 5–8 colors.
 Draw in classic retro game sprite style: clean shapes, clear silhouette, centered on the canvas.
 Think carefully about each row before outputting it.`,
-    tools: [
-      {
-        name: 'render_pixel_art',
-        description: `Output the completed ${gridW}×${gridH} pixel art grid`,
-        input_schema: {
-          type: 'object',
-          properties: {
-            pixels: {
-              type: 'array',
-              description: `Array of exactly ${gridH} rows, each with exactly ${gridW} cells`,
-              items: {
+      tools: [
+        {
+          name: 'render_pixel_art',
+          description: `Output the completed ${gridW}×${gridH} pixel art grid`,
+          input_schema: {
+            type: 'object',
+            properties: {
+              pixels: {
                 type: 'array',
-                items: {},
+                description: `Array of exactly ${gridH} rows, each with exactly ${gridW} cells`,
+                items: {
+                  type: 'array',
+                  items: {},
+                },
               },
             },
+            required: ['pixels'],
           },
-          required: ['pixels'],
         },
-      },
-    ],
-    tool_choice: { type: 'tool', name: 'render_pixel_art' },
-    messages: [
-      {
-        role: 'user',
-        content: `Generate pixel art of: ${prompt.trim()}\nCanvas size: ${gridW} columns × ${gridH} rows`,
-      },
-    ],
+      ],
+      tool_choice: { type: 'tool', name: 'render_pixel_art' },
+      messages: [
+        {
+          role: 'user',
+          content: `Generate pixel art of: ${prompt.trim()}\nCanvas size: ${gridW} columns × ${gridH} rows`,
+        },
+      ],
+    }),
   });
 
+  if (!anthropicRes.ok) {
+    const errText = await anthropicRes.text();
+    console.error('Anthropic API error:', anthropicRes.status, errText);
+    return new Response(JSON.stringify({ error: 'Anthropic API error', detail: errText }), {
+      status: 502,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const data = await anthropicRes.json();
+
   // Extract tool result
-  const toolUse = response.content.find((b) => b.type === 'tool_use');
-  if (!toolUse || toolUse.type !== 'tool_use') {
+  const toolUse = data.content?.find((b: { type: string }) => b.type === 'tool_use');
+  if (!toolUse) {
     return new Response(JSON.stringify({ error: 'No pixel data returned' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const input = toolUse.input as { pixels: unknown };
-  const pixels = validatePixels(input.pixels, gridW, gridH);
+  const pixels = validatePixels(toolUse.input?.pixels, gridW, gridH);
   if (!pixels) {
     return new Response(JSON.stringify({ error: 'Invalid pixel data from model' }), {
       status: 500,
