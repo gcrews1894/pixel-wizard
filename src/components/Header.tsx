@@ -7,9 +7,11 @@ const PRESETS = [8, 16, 32, 48, 64] as const;
 
 interface Props {
   projectId: string;
+  showGenerate: boolean;
+  onToggleGenerate: () => void;
 }
 
-export function Header({ projectId }: Props) {
+export function Header({ projectId, showGenerate, onToggleGenerate }: Props) {
   const { gridW, gridH, showGrid, setShowGrid, setResolution, clearCanvas } = useCanvasStore();
   const { getProject, updateProject } = useProjectStore();
 
@@ -160,6 +162,21 @@ export function Header({ projectId }: Props) {
         <button onClick={handleClear}
           className="px-4 py-1.5 bg-[#e94560] text-white rounded-md text-sm hover:opacity-80 active:scale-95 transition-all">
           Clear
+        </button>
+      </div>
+
+      {/* AI toggle — pushed to far right */}
+      <div className="ml-auto">
+        <button
+          onClick={onToggleGenerate}
+          title="AI Generate"
+          className={`px-4 py-1.5 rounded-md text-sm border font-semibold transition-all hover:opacity-80 active:scale-95 ${
+            showGenerate
+              ? 'bg-[#533483] border-[#533483] text-white'
+              : 'bg-[#1a1a2e] border-[#2a2a4a] text-[#8888aa] hover:text-[#eaeaea]'
+          }`}
+        >
+          ✦ AI
         </button>
       </div>
     </header>

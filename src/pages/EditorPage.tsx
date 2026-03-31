@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Canvas } from '../components/Canvas';
@@ -30,6 +30,8 @@ export function EditorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [showGenerate, setShowGenerate] = useState(false);
+
   usePersistence(id ?? '');
   const viewportControls = useViewport();
   const { viewport, fitToWindow, zoomStep } = viewportControls;
@@ -39,7 +41,7 @@ export function EditorPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#1a1a2e] text-[#eaeaea]">
-      <Header projectId={id} />
+      <Header projectId={id} showGenerate={showGenerate} onToggleGenerate={() => setShowGenerate(v => !v)} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
@@ -47,13 +49,11 @@ export function EditorPage() {
           <Toolbar />
           <div className="h-px bg-[#2a2a4a]" />
           <ColorPicker />
-          <div className="h-px bg-[#2a2a4a]" />
-          <GeneratePanel />
         </aside>
 
         {/* Canvas area */}
         <main
-          className="relative flex-1 overflow-hidden"
+          className="relative flex-1 overflow-hidden min-w-0"
           style={{
             background: `
               radial-gradient(circle at 20% 50%, rgba(83,52,131,.15) 0%, transparent 50%),
@@ -85,6 +85,14 @@ export function EditorPage() {
             </button>
           </div>
         </main>
+        {/* AI Generate drawer */}
+        <aside
+          className={`shrink-0 bg-[#16213e] border-l border-[#2a2a4a] overflow-y-auto transition-all duration-200 ${
+            showGenerate ? 'w-72 p-4' : 'w-0 p-0 overflow-hidden'
+          }`}
+        >
+          {showGenerate && <GeneratePanel />}
+        </aside>
       </div>
 
       <DownloadPanel />
