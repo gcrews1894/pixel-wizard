@@ -3,13 +3,55 @@ import { useCanvasStore } from '../store/canvasStore';
 import { supabase } from '../lib/supabase';
 import type { Pixels } from '../lib/canvas';
 
+/** Convert a base64 PNG to a 2D pixel grid by drawing onto an off-screen canvas */
+async function base64PngToPixels(base64: string, gridW: number, gridH: number): Promise<Pixels> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = gridW;
+      canvas.height = gridH;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, gridW, gridH);
+      const { data } = ctx.getImageData(0, 0, gridW, gridH);
+
+      const pixels: Pixels = [];
+      for (let y = 0; y < gridH; y++) {
+        const row: (string | null)[] = [];
+        for (let x = 0; x < gridW; x++) {
+          const i = (y * gridW + x) * 4;
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+          // Treat pixels with low alpha as transparent
+          if (a < 32) {
+            row.push(null);
+          } else {
+            row.push(
+              '#' +
+              r.toString(16).padStart(2, '0') +
+              g.toString(16).padStart(2, '0') +
+              b.toString(16).padStart(2, '0'),
+            );
+          }
+        }
+        pixels.push(row);
+      }
+      resolve(pixels);
+    };
+    img.onerror = () => reject(new Error('Failed to decode image'));
+    img.src = `data:image/png;base64,${base64}`;
+  });
+}
+
 export function GeneratePanel() {
   const { gridW, gridH, pushUndo, setPixels } = useCanvasStore();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sizeWarning = gridW > 32 || gridH > 32;
+  const sizeWarning = gridW > 64 || gridH > 64;
 
   async function handleGenerate() {
     const trimmed = prompt.trim();
@@ -25,12 +67,13 @@ export function GeneratePanel() {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
-      if (fnError || !data?.pixels) {
-        throw new Error(fnError?.message ?? 'No pixel data returned');
+      if (fnError || !data?.imageBase64) {
+        throw new Error(fnError?.message ?? data?.error ?? 'No image data returned');
       }
 
+      const pixels = await base64PngToPixels(data.imageBase64, gridW, gridH);
       pushUndo();
-      setPixels(data.pixels as Pixels);
+      setPixels(pixels);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed. Please try again.');
     } finally {
@@ -58,7 +101,7 @@ export function GeneratePanel() {
 
       {sizeWarning && (
         <p className="text-[#8888aa] text-[11px] mt-2 leading-relaxed">
-          Best results on 32×32 or smaller. Larger canvases may be less accurate.
+          Best results on 64×64 or smaller. Larger canvases may be less detailed.
         </p>
       )}
 

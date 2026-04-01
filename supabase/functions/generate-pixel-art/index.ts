@@ -10,43 +10,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const HEX_RE = /^#[0-9a-fA-F]{6}$/;
-
-// Normalise a single cell value — accept hex strings, coerce anything else to null
-function normaliseCell(cell: unknown): string | null {
-  if (cell === null || cell === undefined) return null;
-  if (typeof cell === 'string') {
-    const c = cell.trim();
-    if (HEX_RE.test(c)) return c.toLowerCase();
-    // Accept shorthand #rgb → expand to #rrggbb
-    if (/^#[0-9a-fA-F]{3}$/.test(c)) {
-      return '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
-    }
-  }
-  return null;
-}
-
-// Instead of rejecting a mismatched grid, pad/trim it to exact dimensions
-function normalisePixels(
-  pixels: unknown,
-  gridW: number,
-  gridH: number,
-): (string | null)[][] {
-  const rows: (string | null)[][] = [];
-  const src = Array.isArray(pixels) ? pixels : [];
-
-  for (let y = 0; y < gridH; y++) {
-    const srcRow = src[y];
-    const row: (string | null)[] = [];
-    const cells = Array.isArray(srcRow) ? srcRow : [];
-    for (let x = 0; x < gridW; x++) {
-      row.push(normaliseCell(cells[x]));
-    }
-    rows.push(row);
-  }
-  return rows;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -85,77 +48,48 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Call Anthropic API directly via fetch (avoids Deno npm: compatibility issues)
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+  // Call PixelLab API
+  const pixellabRes = await fetch('https://api.pixellab.ai/v2/create-image-pixflux', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!,
-      'anthropic-version': '2023-06-01',
+      'Authorization': `Bearer ${Deno.env.get('PIXELLAB_API_KEY')!}`,
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 8192,
-      system: `You are a pixel art generator. Given a subject and canvas size, you output a pixel art grid.
-The grid must have exactly ${gridH} rows and ${gridW} columns.
-Each cell must be either a hex color string (e.g. "#e94560") or null for transparent/empty.
-Use null generously for the background — only fill cells that are part of the subject.
-Use a small, harmonious palette of 5–8 colors.
-Draw in classic retro game sprite style: clean shapes, clear silhouette, centered on the canvas.
-Think carefully about each row before outputting it.`,
-      tools: [
-        {
-          name: 'render_pixel_art',
-          description: `Output the completed ${gridW}×${gridH} pixel art grid`,
-          input_schema: {
-            type: 'object',
-            properties: {
-              pixels: {
-                type: 'array',
-                description: `Array of exactly ${gridH} rows, each with exactly ${gridW} cells`,
-                items: {
-                  type: 'array',
-                  items: {},
-                },
-              },
-            },
-            required: ['pixels'],
-          },
-        },
-      ],
-      tool_choice: { type: 'tool', name: 'render_pixel_art' },
-      messages: [
-        {
-          role: 'user',
-          content: `Generate pixel art of: ${prompt.trim()}\nCanvas size: ${gridW} columns × ${gridH} rows`,
-        },
-      ],
+      description: prompt.trim(),
+      image_size: { width: gridW, height: gridH },
+      no_background: true,
     }),
   });
 
-  if (!anthropicRes.ok) {
-    const errText = await anthropicRes.text();
-    console.error('Anthropic API error:', anthropicRes.status, errText);
-    return new Response(JSON.stringify({ error: 'Anthropic API error', detail: errText }), {
+  if (!pixellabRes.ok) {
+    const errText = await pixellabRes.text();
+    console.error('PixelLab API error:', pixellabRes.status, errText);
+    return new Response(JSON.stringify({ error: 'PixelLab API error', detail: errText }), {
       status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const data = await anthropicRes.json();
+  const data = await pixellabRes.json();
 
-  // Extract tool result
-  const toolUse = data.content?.find((b: { type: string }) => b.type === 'tool_use');
-  if (!toolUse) {
-    return new Response(JSON.stringify({ error: 'No pixel data returned' }), {
+  // PixelLab returns the image as base64 — field may be at data.image or data.images[0]
+  const imageBase64: string | undefined =
+    data?.image?.base64 ??
+    data?.images?.[0]?.base64 ??
+    data?.data?.image?.base64 ??
+    data?.data?.images?.[0]?.base64;
+
+  if (!imageBase64) {
+    console.error('PixelLab unexpected response shape:', JSON.stringify(data).slice(0, 500));
+    return new Response(JSON.stringify({ error: 'No image data returned', detail: JSON.stringify(data).slice(0, 500) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const pixels = normalisePixels(toolUse.input?.pixels, gridW, gridH);
-
-  return new Response(JSON.stringify({ pixels }), {
+  // Return the base64 image to the client — pixel extraction is done in the browser
+  return new Response(JSON.stringify({ imageBase64, gridW, gridH }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
