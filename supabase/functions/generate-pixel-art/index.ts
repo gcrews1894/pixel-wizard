@@ -12,19 +12,39 @@ const corsHeaders = {
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
-function validatePixels(
+// Normalise a single cell value — accept hex strings, coerce anything else to null
+function normaliseCell(cell: unknown): string | null {
+  if (cell === null || cell === undefined) return null;
+  if (typeof cell === 'string') {
+    const c = cell.trim();
+    if (HEX_RE.test(c)) return c.toLowerCase();
+    // Accept shorthand #rgb → expand to #rrggbb
+    if (/^#[0-9a-fA-F]{3}$/.test(c)) {
+      return '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+    }
+  }
+  return null;
+}
+
+// Instead of rejecting a mismatched grid, pad/trim it to exact dimensions
+function normalisePixels(
   pixels: unknown,
   gridW: number,
   gridH: number,
-): (string | null)[][] | null {
-  if (!Array.isArray(pixels) || pixels.length !== gridH) return null;
-  for (const row of pixels) {
-    if (!Array.isArray(row) || row.length !== gridW) return null;
-    for (const cell of row) {
-      if (cell !== null && (typeof cell !== 'string' || !HEX_RE.test(cell))) return null;
+): (string | null)[][] {
+  const rows: (string | null)[][] = [];
+  const src = Array.isArray(pixels) ? pixels : [];
+
+  for (let y = 0; y < gridH; y++) {
+    const srcRow = src[y];
+    const row: (string | null)[] = [];
+    const cells = Array.isArray(srcRow) ? srcRow : [];
+    for (let x = 0; x < gridW; x++) {
+      row.push(normaliseCell(cells[x]));
     }
+    rows.push(row);
   }
-  return pixels as (string | null)[][];
+  return rows;
 }
 
 Deno.serve(async (req) => {
@@ -133,13 +153,7 @@ Think carefully about each row before outputting it.`,
     });
   }
 
-  const pixels = validatePixels(toolUse.input?.pixels, gridW, gridH);
-  if (!pixels) {
-    return new Response(JSON.stringify({ error: 'Invalid pixel data from model' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  const pixels = normalisePixels(toolUse.input?.pixels, gridW, gridH);
 
   return new Response(JSON.stringify({ pixels }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
