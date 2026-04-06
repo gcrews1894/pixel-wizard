@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useCanvasStore } from '../../store/canvasStore';
-import { hexToRgb, rgbToHex, isValidHex } from '../../lib/colors';
+import { hexToRgb, rgbToHex, rgbToHsb, hsbToRgb, isValidHex } from '../../lib/colors';
+
+type Mode = 'rgb' | 'hsb';
 
 export function FullPicker() {
   const { currentColor, setCurrentColor, addRecentColor } = useCanvasStore();
-
+  const [mode, setMode] = useState<Mode>('rgb');
   const [hexInput, setHexInput] = useState(currentColor);
-  const { r, g, b } = hexToRgb(currentColor);
 
-  // Keep hex input in sync when store changes externally
   useEffect(() => {
     setHexInput(currentColor);
   }, [currentColor]);
@@ -22,17 +22,39 @@ export function FullPicker() {
     applyColor(e.target.value);
   }
 
-  function handleSlider(channel: 'r' | 'g' | 'b', val: number) {
-    const cur = hexToRgb(currentColor);
-    const next = { ...cur, [channel]: val };
-    applyColor(rgbToHex(next.r, next.g, next.b));
-  }
-
   function handleHexInput(val: string) {
     setHexInput(val);
     const normalized = val.startsWith('#') ? val : '#' + val;
     if (isValidHex(normalized)) applyColor(normalized);
   }
+
+  // RGB mode
+  const { r, g, b } = hexToRgb(currentColor);
+  function handleRgbSlider(channel: 'r' | 'g' | 'b', val: number) {
+    const cur = hexToRgb(currentColor);
+    applyColor(rgbToHex({ ...cur, [channel]: val }.r, { ...cur, [channel]: val }.g, { ...cur, [channel]: val }.b));
+  }
+
+  // HSB mode
+  const { h, s, bv } = rgbToHsb(r, g, b);
+  function handleHsbSlider(channel: 'h' | 's' | 'bv', val: number) {
+    const cur = rgbToHsb(r, g, b);
+    const next = { ...cur, [channel]: val };
+    const rgb = hsbToRgb(next.h, next.s, next.bv);
+    applyColor(rgbToHex(rgb.r, rgb.g, rgb.b));
+  }
+
+  const rgbSliders = [
+    { key: 'r' as const, label: 'R', color: '#e94560', val: r, max: 255 },
+    { key: 'g' as const, label: 'G', color: '#22c55e', val: g, max: 255 },
+    { key: 'b' as const, label: 'B', color: '#3b82f6', val: b, max: 255 },
+  ];
+
+  const hsbSliders = [
+    { key: 'h' as const, label: 'H', unit: '°', color: '#f59e0b', val: h, max: 360 },
+    { key: 's' as const, label: 'S', unit: '%', color: '#a78bfa', val: s, max: 100 },
+    { key: 'bv' as const, label: 'B', unit: '%', color: '#94a3b8', val: bv, max: 100 },
+  ];
 
   return (
     <div className="flex flex-col gap-3">
@@ -44,28 +66,52 @@ export function FullPicker() {
         className="w-full h-24 rounded-lg cursor-pointer"
       />
 
-      {/* RGB Sliders */}
-      {(['r', 'g', 'b'] as const).map((ch, i) => {
-        const val = [r, g, b][i];
-        const labels = ['R', 'G', 'B'];
-        const colors  = ['#e94560', '#22c55e', '#3b82f6'];
-        return (
-          <div key={ch} className="flex flex-col gap-1.5">
-            <div className="flex justify-between text-sm">
-              <span style={{ color: colors[i] }} className="font-semibold">{labels[i]}</span>
-              <span className="text-[#8888aa] font-mono">{val}</span>
+      {/* Mode toggle */}
+      <div className="flex bg-[#1a1a2e] rounded-md p-0.5 text-xs font-semibold">
+        {(['rgb', 'hsb'] as Mode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`flex-1 py-1 rounded transition-colors uppercase tracking-wide ${
+              mode === m
+                ? 'bg-[#533483] text-white'
+                : 'text-[#8888aa] hover:text-[#eaeaea]'
+            }`}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+
+      {/* Sliders */}
+      {mode === 'rgb'
+        ? rgbSliders.map(({ key, label, color, val, max }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <div className="flex justify-between text-sm">
+                <span style={{ color }} className="font-semibold">{label}</span>
+                <span className="text-[#8888aa] font-mono">{val}</span>
+              </div>
+              <input
+                type="range" min={0} max={max} value={val}
+                onChange={e => handleRgbSlider(key, +e.target.value)}
+                className="w-full"
+              />
             </div>
-            <input
-              type="range"
-              min={0}
-              max={255}
-              value={val}
-              onChange={e => handleSlider(ch, +e.target.value)}
-              className="w-full"
-            />
-          </div>
-        );
-      })}
+          ))
+        : hsbSliders.map(({ key, label, unit, color, val, max }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <div className="flex justify-between text-sm">
+                <span style={{ color }} className="font-semibold">{label}</span>
+                <span className="text-[#8888aa] font-mono">{val}{unit}</span>
+              </div>
+              <input
+                type="range" min={0} max={max} value={val}
+                onChange={e => handleHsbSlider(key, +e.target.value)}
+                className="w-full"
+              />
+            </div>
+          ))
+      }
 
       {/* Hex input */}
       <input

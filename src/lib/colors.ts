@@ -32,3 +32,45 @@ export function rgbToHex(r: number, g: number, b: number): string {
 export function isValidHex(hex: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(hex);
 }
+
+/** H: 0-360, S: 0-100, B: 0-100 */
+export function rgbToHsb(r: number, g: number, b: number): { h: number; s: number; bv: number } {
+  const rn = r / 255, gn = g / 255, bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+
+  let h = 0;
+  if (delta !== 0) {
+    if (max === rn) h = ((gn - bn) / delta) % 6;
+    else if (max === gn) h = (bn - rn) / delta + 2;
+    else h = (rn - gn) / delta + 4;
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+  }
+
+  const s = max === 0 ? 0 : Math.round((delta / max) * 100);
+  const bv = Math.round(max * 100);
+  return { h, s, bv };
+}
+
+export function hsbToRgb(h: number, s: number, bv: number): { r: number; g: number; b: number } {
+  const sv = s / 100, v = bv / 100;
+  const c = v * sv;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+
+  let rn = 0, gn = 0, bn = 0;
+  if (h < 60)       { rn = c; gn = x; }
+  else if (h < 120) { rn = x; gn = c; }
+  else if (h < 180) { gn = c; bn = x; }
+  else if (h < 240) { gn = x; bn = c; }
+  else if (h < 300) { rn = x; bn = c; }
+  else              { rn = c; bn = x; }
+
+  return {
+    r: Math.round((rn + m) * 255),
+    g: Math.round((gn + m) * 255),
+    b: Math.round((bn + m) * 255),
+  };
+}
